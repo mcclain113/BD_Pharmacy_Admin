@@ -1,16 +1,18 @@
-/*WITH marseq as (
-	select
-	ord.CONTACT_NUMBER,
-	mar.ORDER_MED_ID,
-	mar.TAKEN_TIME,
-	ROW_NUMBER() OVER (PARTITION BY mar.ORDER_MED_ID ORDER BY ord.CONTACT_NUMBER) "RANK"
-	from MAR_ADMIN_INFO mar
-	left outer join ORDER_STATUS ord
-		ON mar.ORDER_MED_ID = ord.ORDER_ID
+WITH marseq ("ordid", "Date-Time Start of Administrationcte", "rankcte" )as (
+    select  DISTINCT
 
-WHERE ord.CONTACT_TYPE_C = '7' AND mar.MAR_ACTION_C IN (1)
-)*/
---order by ORDER_MED_ID, "RANK")
+        mar.ORDER_MED_ID "ORDID",
+        mar.TAKEN_TIME "Date-Time Start of Administrationcte",
+        DENSE_RANK() OVER (PARTITION BY mar.ORDER_MED_ID ORDER BY mar.TAKEN_TIME)  "RANK"
+
+    from MAR_ADMIN_INFO mar
+             left outer join ORDER_STATUS ord
+                             ON mar.ORDER_MED_ID = ord.ORDER_ID
+
+    WHERE ord.CONTACT_TYPE_C = '7' AND mar.MAR_ACTION_C IN (1))
+
+
+
 
 SELECT DISTINCT
               --ROW_NUMBER() OVER (PARTITION BY maradmin.ORDER_MED_ID ORDER BY ord.CONTACT_NUMBER) "RANK"
@@ -45,8 +47,9 @@ SELECT DISTINCT
 
               ,cast(maradmin.ORDER_MED_ID as varchar(100)) "Prescription Number"
 
-              --,case when marseq.ORDER_MED_ID is not null then cast(marseq.RANK as varchar)
-              --else 'NULL' end "Administration Sequence"
+              ,case when (maradmin.TAKEN_TIME = marseq.[Date-Time Start of Administrationcte]) AND (maradmin.ORDER_MED_ID = marseq.ordid) then cast(marseq.rankcte as varchar)
+                    when (maradmin.TAKEN_TIME <> marseq.[Date-Time Start of Administrationcte]) AND (maradmin.ORDER_MED_ID <> marseq.ordid) then 'NULL'
+                    else 'x' end "Administration Sequence"
 
               ,ordermed.MEDICATION_ID "Drug Ingredient Number"
               ,cast(maradmin.ORDER_MED_ID as varchar(100)) "Order Placer Number"
@@ -98,13 +101,16 @@ from MAR_ADMIN_INFO maradmin
                          on pathsp.BED_ID = bed.BED_ID
          left outer join CLARITY_LOC fac
                          on pathsp.HOSPITAL_AREA_ID = FAC.LOC_ID
-    --left outer join marseq
-    --on marseq.ORDER_MED_ID = ordermed.ORDER_MED_ID
+         left outer join marseq
+                         on marseq.ordid = ordermed.ORDER_MED_ID
          left outer join ORDER_STATUS ord
                          ON maradmin.ORDER_MED_ID = ord.ORDER_ID
 
 WHERE pat.HOSP_ADMSN_TIME <= CURRENT_TIMESTAMP
   and ord.CONTACT_TYPE_C = '7' AND maradmin.MAR_ACTION_C IN (1)
+  AND (case when (maradmin.TAKEN_TIME = marseq.[Date-Time Start of Administrationcte]) AND (maradmin.ORDER_MED_ID = marseq.ordid) then cast(marseq.rankcte as varchar)
+            when (maradmin.TAKEN_TIME <> marseq.[Date-Time Start of Administrationcte]) AND (maradmin.ORDER_MED_ID <> marseq.ordid) then 'NULL'
+            else 'x' end) <> 'x'
 
-
---order by maradmin.ORDER_MED_ID, "RANK"
+ORDER BY
+    "Prescription Number", "Administration Sequence"
