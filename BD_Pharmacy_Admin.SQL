@@ -9,9 +9,44 @@ WITH marseq ("ordid", "Date-Time Start of Administrationcte", "rankcte" )as (
              left outer join ORDER_STATUS ord
                              ON mar.ORDER_MED_ID = ord.ORDER_ID
 
-    WHERE ord.CONTACT_TYPE_C = '7' AND mar.MAR_ACTION_C IN (1))
+    WHERE ord.CONTACT_TYPE_C = '7' AND mar.MAR_ACTION_C IN (1)),
 
+     medid ("MedId", "NDC") as
+         (Select DISTINCT
+              CASE       WHEN ndcmpi.MPI_ID_VAL = '1' THEN ndcmpi.MPI_ID_VAL
+                         WHEN medmpi1.MPI_ID_TYPE_ID = '1' THEN medmpi1.MPI_ID
+                         WHEN medmpi2.MPI_ID_TYPE_ID = '1' THEN medmpi2.MPI_ID
+                         ELSE '' END "MedId",
+                         ndc.RAW_11_DIGIT_NDC "NDC"
 
+          From RX_NDC ndc
+                   LEFT OUTER JOIN RX_NDC_MPI_ID ndcmpi
+                                   ON ndc.NDC_ID = ndcmpi.NDC_ID
+                   LEFT OUTER JOIN RX_NDG ndg
+                                   ON ndg.NDG_ID = ndc.ASSOCIATED_NDG
+                   LEFT OUTER JOIN RX_NDC_STATUS ndcstat
+                                   ON ndcstat.NDC_ID = ndc.NDC_ID
+                   LEFT OUTER JOIN CLARITY_MEDICATION med
+                                   ON med.MEDICATION_ID = ndcstat.MEDICATION_ID
+                   LEFT OUTER JOIN RX_MED_ONE
+                                   ON RX_MED_ONE.MEDICATION_ID = med.MEDICATION_ID
+                   LEFT OUTER JOIN RX_MED_EPI_ID_NUM medmpi1
+                                   ON RX_MED_ONE.DISP_PRODUCT = medmpi1.MEDICATION_ID
+                   LEFT OUTER JOIN CLARITY_MEDICATION dispmed
+                                   ON RX_MED_ONE.DISP_PRODUCT = dispmed.MEDICATION_ID
+                   LEFT OUTER JOIN RX_MED_TWO dispmed2
+                                   ON dispmed.MEDICATION_ID = dispmed2.MEDICATION_ID
+                   LEFT OUTER JOIN RX_MED_THREE dispmed3
+                                   ON dispmed.MEDICATION_ID = dispmed3.MEDICATION_ID
+                   LEFT OUTER JOIN RX_MED_EPI_ID_NUM medmpi2
+                                   ON medmpi2.MEDICATION_ID = med.MEDICATION_ID
+                   LEFT OUTER JOIN RX_MED_TWO med2
+                                   ON med2.MEDICATION_ID = med.MEDICATION_ID
+
+            WHERE
+            ndcmpi.MPI_ID_VAL = '1'
+             OR medmpi1.MPI_ID_TYPE_ID = '1'
+             OR medmpi2.MPI_ID_TYPE_ID = '1' )
 
 
 SELECT DISTINCT
@@ -55,8 +90,8 @@ SELECT DISTINCT
               ,cast(maradmin.ORDER_MED_ID as varchar(100)) "Order Placer Number"
 
               ,format (maradmin.TAKEN_TIME,'yyyy-MM-dd hh:mm:ss') "Date-Time Start of Administration"
-              --Administration Code Identifier needed; different from drug ingredient number?
-
+              ,case when ndc.NDC_ID = medid.MedId  then cast (medid.NDC as char)
+                    else 'NULL' end "Administration Code Identifier"
               ,ordermed.DESCRIPTION "Administered Drug Description"
               ,CAST (maradmin.SIG AS numeric) "Administered Amount"
               ,case when maradmin.DOSE_UNIT_C is not null then medunit.NAME
@@ -105,6 +140,15 @@ from MAR_ADMIN_INFO maradmin
                          on marseq.ordid = ordermed.ORDER_MED_ID
          left outer join ORDER_STATUS ord
                          ON maradmin.ORDER_MED_ID = ord.ORDER_ID
+         left outer join ORDER_DISP_MEDS orddisp
+                         ON orddisp.ORDER_MED_ID = maradmin.ORDER_MED_ID
+         left outer join RX_NDC_STATUS ndcstat
+                         ON ndcstat.CNCT_SERIAL_NUM = orddisp.DISP_NDC_CSN
+         left outer join RX_NDC ndc
+                         ON ndcstat.NDC_ID = ndc.NDC_ID
+         left outer join medid
+                         ON medid.NDC = ndc.NDC_ID
+
 
 WHERE pat.HOSP_ADMSN_TIME <= CURRENT_TIMESTAMP
   and ord.CONTACT_TYPE_C = '7' AND maradmin.MAR_ACTION_C IN (1)
