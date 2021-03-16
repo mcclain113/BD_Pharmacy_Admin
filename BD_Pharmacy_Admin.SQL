@@ -13,9 +13,10 @@ WITH marseq ("ordid", "Date-Time Start of Administrationcte", "rankcte" )as (
 
      medid ("MedId", "NDC") as
          (Select DISTINCT
-              CASE       WHEN ndcmpi.MPI_ID_VAL = '1' THEN ndcmpi.MPI_ID_VAL
-                         WHEN medmpi1.MPI_ID_TYPE_ID = '1' THEN medmpi1.MPI_ID
-                         WHEN medmpi2.MPI_ID_TYPE_ID = '1' THEN medmpi2.MPI_ID
+              CASE       WHEN ndcmpi.MPI_ID_VAL = '41' THEN ndcmpi.MPI_ID_VAL
+                         WHEN ndgmpi.MPI_ID_TYPE_ID = '42'THEN ndgmpi.MPI_ID
+                         WHEN medmpi1.MPI_ID_TYPE_ID = '40' THEN medmpi1.MPI_ID
+                         WHEN medmpi2.MPI_ID_TYPE_ID = '40' THEN medmpi2.MPI_ID
                          ELSE '' END "MedId",
                          ndc.RAW_11_DIGIT_NDC "NDC"
 
@@ -24,6 +25,8 @@ WITH marseq ("ordid", "Date-Time Start of Administrationcte", "rankcte" )as (
                                    ON ndc.NDC_ID = ndcmpi.NDC_ID
                    LEFT OUTER JOIN RX_NDG ndg
                                    ON ndg.NDG_ID = ndc.ASSOCIATED_NDG
+                   LEFT OUTER JOIN RX_NDG_MPI_ID ndgmpi
+                                   ON ndgmpi.NDG_ID = ndc.ASSOCIATED_NDG
                    LEFT OUTER JOIN RX_NDC_STATUS ndcstat
                                    ON ndcstat.NDC_ID = ndc.NDC_ID
                    LEFT OUTER JOIN CLARITY_MEDICATION med
@@ -44,9 +47,10 @@ WITH marseq ("ordid", "Date-Time Start of Administrationcte", "rankcte" )as (
                                    ON med2.MEDICATION_ID = med.MEDICATION_ID
 
             WHERE
-            ndcmpi.MPI_ID_VAL = '1'
-             OR medmpi1.MPI_ID_TYPE_ID = '1'
-             OR medmpi2.MPI_ID_TYPE_ID = '1' )
+             ndcmpi.MPI_ID_VAL = '41'
+             OR ndgmpi.MPI_ID_TYPE_ID = '42'
+             OR medmpi1.MPI_ID_TYPE_ID = '40'
+             OR medmpi2.MPI_ID_TYPE_ID = '40' )
 
 
 SELECT DISTINCT
