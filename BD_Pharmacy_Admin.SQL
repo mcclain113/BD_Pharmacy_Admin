@@ -29,6 +29,9 @@ WITH marseq ("ordid", "Date-Time Start of Administrationcte", "rankcte" )as (
                                    ON ndgmpi.NDG_ID = ndc.ASSOCIATED_NDG
                    LEFT OUTER JOIN RX_NDC_STATUS ndcstat
                                    ON ndcstat.NDC_ID = ndc.NDC_ID
+                   INNER JOIN
+                   (select NDC_ID, MAX(CONTACT_NUMBER) as ID From RX_NDC_STATUS GROUP BY NDC_ID) AS ndcstat2
+                                   ON ndcstat2.NDC_ID = ndcstat.NDC_ID AND ndcstat2.ID = ndcstat.CONTACT_NUMBER
                    LEFT OUTER JOIN CLARITY_MEDICATION med
                                    ON med.MEDICATION_ID = ndcstat.MEDICATION_ID
                    LEFT OUTER JOIN RX_MED_ONE
